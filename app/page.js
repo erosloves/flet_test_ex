@@ -1,95 +1,165 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import { useState, useEffect } from "react";
 
-export default function Home() {
+const Page = () => {
+  const [user, setUser] = useState([]);
+  const [post, setPost] = useState([]);
+  const [comment, setComment] = useState([]);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [currentID, setCurrentID] = useState(null);
+
+  const userDataURL = "https://jsonplaceholder.typicode.com/users";
+  const postDataURL = "https://jsonplaceholder.typicode.com/posts";
+  const commentDataURL = "https://jsonplaceholder.typicode.com/comments";
+
+  const getData = async (url, hook) => {
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      await hook(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    getData(userDataURL, setUser);
+    getData(postDataURL, setPost);
+  }, []);
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+    <div>
+      <div>
+        <h1 className="text-center text-[35px]">Posts</h1>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {post.map((post) =>
+            user
+              .filter((u) => u.id === post.userId)
+              .map((u) => (
+                <Post
+                  key={post.id}
+                  post={post}
+                  user={u}
+                  props={{
+                    setSelectedPost,
+                    getData,
+                    commentDataURL,
+                    setCurrentID,
+                  }}
+                />
+              ))
+          )}
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <PostComment
+          props={{
+            selectedPost,
+            setSelectedPost,
+            currentID,
+            postDataURL,
+            userDataURL,
+          }}
+        />
+      </div>
     </div>
   );
-}
+};
+
+const Post = ({ post, user, props }) => {
+  const { setSelectedPost, getData, commentDataURL, setCurrentID } = props;
+
+  const openPost = () => {
+    getData(commentDataURL + `?postId=${post.id}`, setSelectedPost);
+    setCurrentID(post.id);
+  };
+  return (
+    <div
+      className="max-w-md mx-auto bg-white shadow-lg rounded-2xl p-6 space-y-4"
+      onClick={openPost}
+    >
+      <h3 className="text-black-600 cursor-pointer w-max">
+        {user.name} <i className="text-gray-500">@{user.username}</i>
+      </h3>
+      <h2 className="text-xl font-bold text-gray-900">{post.title}</h2>
+      <p className="text-gray-600">{post.body}</p>
+    </div>
+  );
+};
+
+const PostComment = ({ props }) => {
+  const { selectedPost, setSelectedPost, currentID, postDataURL, userDataURL } =
+    props;
+  const [data, setData] = useState([]);
+  const [name, setName] = useState([]);
+
+  useEffect(() => {
+    if (!currentID) return;
+    const getData = async () => {
+      try {
+        const response = await fetch(`${postDataURL}?id=${currentID}`);
+        const jsonData = await response.json();
+        setData(jsonData[0]);
+      } catch (error) {
+        console.error("Ошибка при загрузке данных getData:", error);
+      }
+    };
+    getData();
+  }, [currentID]);
+
+  useEffect(() => {
+    if (!data) return;
+    const getName = async () => {
+      try {
+        const response = await fetch(`${userDataURL}?id=${data.userId}`);
+        const jsonData = await response.json();
+
+        console.log(jsonData);
+        setName(jsonData[0]);
+      } catch (error) {
+        console.error("Ошибка при загрузке данных getName:", error);
+      }
+    };
+    getName();
+  }, [data]);
+
+  if (!selectedPost) return null;
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center flex-col bg-black bg-opacity-50 "
+      onClick={() => setSelectedPost(null)}
+    >
+      <h2 className="text-center text-[35px] text-white">Comments</h2>
+      <div className="flex items-center justify-center gap-5">
+        <div
+          className="bg-white max-w-md p-6 rounded-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="max-w-md mx-auto bg-white shadow-lg rounded-2xl p-6 space-y-4">
+            <h3 className="text-black-600 cursor-pointer w-max">
+              {name.name} <i className="text-gray-500">@{name.username}</i>
+            </h3>
+            <h2 className="text-xl font-bold text-gray-900">{data.title}</h2>
+            <p className="text-gray-600">{data.body}</p>
+          </div>
+        </div>
+
+        <div
+          className="max-w-md max-h-[80vh] bg-white shadow-lg rounded-2xl p-6 space-y-4 overflow-y-scroll"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {selectedPost.map((el, i) => (
+            <div key={i} className="border-b border-black break-words">
+              <h3 className="text-black-600 cursor-pointer w-max">
+                {el.name}
+                <br />
+                <i className="text-gray-500">{el.email}</i>
+              </h3>
+              <p className="text-gray-600">{el.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Page;
